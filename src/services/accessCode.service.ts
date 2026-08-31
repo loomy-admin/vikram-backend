@@ -383,3 +383,34 @@ export async function reassignAccessCode(id: number, targetSchoolId: number) {
 
   return code;
 }
+
+/**
+ * Admin: Bulk update access code status (e.g. disable multiple UNUSED access codes).
+ */
+export async function bulkUpdateAccessCodeStatus(ids: number[], status: AccessCodeStatus) {
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    throw {
+      statusCode: 400,
+      code: ERROR_CODES.VALIDATION_ERROR,
+      message: 'No access code IDs provided for bulk update',
+    };
+  }
+
+  // Soft update status for codes that are NOT USED
+  const [updatedCount] = await AccessCode.update(
+    { status },
+    {
+      where: {
+        id: { [Op.in]: ids },
+        status: { [Op.ne]: AccessCodeStatus.USED },
+      },
+    }
+  );
+
+  logger.info(`Bulk updated status to ${status} for ${updatedCount} access code(s)`);
+
+  return {
+    updatedCount,
+    status,
+  };
+}

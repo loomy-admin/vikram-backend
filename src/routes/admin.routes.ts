@@ -72,6 +72,7 @@ router.patch('/students/:id/status', validateBody(updateStudentStatusSchema), Ad
 // --------------------------------------------------------
 router.post('/access-codes', validateBody(createSingleAccessCodeSchema), AccessCodeController.generateSingleCode);
 router.post('/access-codes/bulk', validateBody(createBulkAccessCodesSchema), AccessCodeController.generateBulkCodes);
+router.patch('/access-codes/bulk-status', AccessCodeController.bulkUpdateAccessCodeStatus);
 router.get('/access-codes', AccessCodeController.listAccessCodes);
 router.get('/access-codes/:id', AccessCodeController.getAccessCodeById);
 router.patch(

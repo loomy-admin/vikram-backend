@@ -111,3 +111,16 @@ import { AccessCodeStatus } from '../types/enums';
     }
   }
 
+  /**
+   * PATCH /api/admin/access-codes/bulk-status
+   */
+  export async function bulkUpdateAccessCodeStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { ids, status } = req.body;
+      const result = await AccessCodeService.bulkUpdateAccessCodeStatus(ids, status);
+      return sendSuccess(res, result, `Successfully updated ${result.updatedCount} access code(s) status to ${status}`);
+    } catch (error) {
+      next(error);
+    }
+  }
+
