@@ -313,6 +313,7 @@ export async function deleteTopic(id: number) {
 // ----------------------------------------------------
 export async function listContent(params?: {
   topicId?: number;
+  chapterId?: number;
   type?: ContentType;
   status?: ContentStatus;
   page?: number;
@@ -324,6 +325,7 @@ export async function listContent(params?: {
 
   const where: any = {};
   if (params?.topicId) where.topicId = params.topicId;
+  if (params?.chapterId) where.chapterId = params.chapterId;
   if (params?.type) where.type = params.type;
   if (params?.status) where.status = params.status;
 
@@ -403,7 +405,8 @@ export async function getContentById(id: number) {
 }
 
 export async function createContent(data: {
-  topicId: number;
+  topicId?: number;
+  chapterId?: number;
   title: string;
   type: ContentType;
   url: string;
@@ -412,13 +415,31 @@ export async function createContent(data: {
   status?: ContentStatus;
   metadata?: any;
 }) {
-  const topic = await Topic.findByPk(data.topicId);
-  if (!topic) {
-    throw { statusCode: 404, code: ERROR_CODES.TOPIC_NOT_FOUND, message: 'Topic not found' };
+  if ((!data.topicId && !data.chapterId) || (data.topicId && data.chapterId)) {
+    throw {
+      statusCode: 400,
+      code: 'INVALID_CONTENT_PARENT',
+      message: 'Content must belong to EITHER a topicId OR a chapterId (not both and not neither).',
+    };
+  }
+
+  if (data.topicId) {
+    const topic = await Topic.findByPk(data.topicId);
+    if (!topic) {
+      throw { statusCode: 404, code: ERROR_CODES.TOPIC_NOT_FOUND, message: 'Topic not found' };
+    }
+  }
+
+  if (data.chapterId) {
+    const chapter = await Chapter.findByPk(data.chapterId);
+    if (!chapter) {
+      throw { statusCode: 404, code: ERROR_CODES.CHAPTER_NOT_FOUND, message: 'Chapter not found' };
+    }
   }
 
   return Content.create({
-    topicId: data.topicId,
+    topicId: data.topicId || null,
+    chapterId: data.chapterId || null,
     title: data.title.trim(),
     type: data.type,
     url: data.url.trim(),
@@ -433,6 +454,7 @@ export async function updateContent(
   id: number,
   data: {
     topicId?: number;
+    chapterId?: number;
     title?: string;
     type?: ContentType;
     url?: string;
@@ -444,6 +466,18 @@ export async function updateContent(
 ) {
   const content = await Content.findByPk(id);
   if (!content) throw new Error('Content not found');
+
+  const targetTopicId = data.topicId !== undefined ? data.topicId : content.topicId;
+  const targetChapterId = data.chapterId !== undefined ? data.chapterId : content.chapterId;
+
+  if ((!targetTopicId && !targetChapterId) || (targetTopicId && targetChapterId)) {
+    throw {
+      statusCode: 400,
+      code: 'INVALID_CONTENT_PARENT',
+      message: 'Content must belong to EITHER a topicId OR a chapterId (not both and not neither).',
+    };
+  }
+
   return content.update(data);
 }
 

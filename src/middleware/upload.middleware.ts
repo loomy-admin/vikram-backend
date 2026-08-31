@@ -39,6 +39,6 @@ const storage = config.storage.type === 's3'
 export const upload = multer({
   storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB max limit
+    fileSize: 2 * 1024 * 1024 * 1024, // 2GB limit to support long videos (30-60min+) without duration restrictions
   },
 });

@@ -76,6 +76,10 @@ Topic.belongsTo(Chapter, { foreignKey: 'chapterId', as: 'chapter' });
 Topic.hasMany(Content, { foreignKey: 'topicId', as: 'contents' });
 Content.belongsTo(Topic, { foreignKey: 'topicId', as: 'topic' });
 
+// Chapter <-> Content (1:N for direct contents)
+Chapter.hasMany(Content, { foreignKey: 'chapterId', as: 'contents' });
+Content.belongsTo(Chapter, { foreignKey: 'chapterId', as: 'chapter' });
+
 // Student <-> ContentProgress (1:N)
 Student.hasMany(ContentProgress, { foreignKey: 'studentId', as: 'progress' });
 ContentProgress.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });

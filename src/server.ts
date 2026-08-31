@@ -14,6 +14,20 @@ async function bootstrap() {
     await sequelize.authenticate();
     logger.info(' Connected to MySQL via Sequelize');
 
+    // Ensure chapterId column exists in contents table if migrating existing database
+    try {
+      await sequelize.query('ALTER TABLE `contents` ADD COLUMN `chapterId` INT NULL AFTER `id`');
+    } catch (e) {
+      // Column already exists or table will be created by sync
+    }
+
+    try {
+      await sequelize.query('ALTER TABLE `students` ADD COLUMN `city` VARCHAR(100) NULL AFTER `phone`');
+    } catch (e) {}
+    try {
+      await sequelize.query('ALTER TABLE `students` ADD COLUMN `state` VARCHAR(100) NULL AFTER `city`');
+    } catch (e) {}
+
     // Sync database schema safely without destructive alter constraints
     await sequelize.sync();
     logger.info(' Database schema synced');

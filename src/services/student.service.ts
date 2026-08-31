@@ -15,6 +15,8 @@ export async function registerStudent(data: {
   classId: number;
   email?: string | null;
   phone?: string | null;
+  city?: string | null;
+  state?: string | null;
   rollNumber?: string;
 }) {
   if (!data.email && !data.phone) {
@@ -96,6 +98,8 @@ export async function registerStudent(data: {
     phone: data.phone?.trim() || null,
     schoolId: data.schoolId,
     classId: data.classId,
+    city: data.city?.trim() || null,
+    state: data.state?.trim() || null,
     rollNumber: data.rollNumber?.trim() || null,
     status: StudentStatus.PENDING,
     lastLoginAt: new Date(),
@@ -210,18 +214,20 @@ export async function getStudentHomeFeed(studentId: number, classId?: number) {
           {
             model: Topic,
             as: 'topic',
+            required: false,
             include: [
               {
                 model: Chapter,
                 as: 'chapter',
-                include: [
-                  {
-                    model: Subject,
-                    as: 'subject',
-                  },
-                ],
+                include: [{ model: Subject, as: 'subject' }],
               },
             ],
+          },
+          {
+            model: Chapter,
+            as: 'chapter',
+            required: false,
+            include: [{ model: Subject, as: 'subject' }],
           },
         ],
       },
@@ -250,18 +256,27 @@ export async function getStudentHomeFeed(studentId: number, classId?: number) {
       description: sub.description,
       totalChapters: sub.chapters?.length || 0,
     })),
-    recentContent: recentProgress.map((p: any) => ({
-      id: p.content.id,
-      contentId: p.content.id,
-      title: p.content.title,
-      type: p.content.type,
-      url: p.content.url,
-      topicName: p.content.topic.name,
-      chapterName: p.content.topic.chapter.name,
-      subjectName: p.content.topic.chapter.subject.name,
-      completed: p.completed,
-      lastAccessedAt: p.lastAccessedAt,
-    })),
+    recentContent: recentProgress.map((p: any) => {
+      const cnt = p.content;
+      const top = cnt.topic;
+      const chap = top ? top.chapter : cnt.chapter;
+      const subj = chap ? chap.subject : null;
+
+      return {
+        id: cnt.id,
+        contentId: cnt.id,
+        title: cnt.title,
+        type: cnt.type,
+        url: cnt.url,
+        topicId: top?.id || null,
+        chapterId: chap?.id || null,
+        topicName: top?.name || null,
+        chapterName: chap?.name || '',
+        subjectName: subj?.name || '',
+        completed: p.completed,
+        lastAccessedAt: p.lastAccessedAt,
+      };
+    }),
   };
 }
 
@@ -307,7 +322,10 @@ export async function getChaptersForSubject(subjectId: number, classId: number) 
       status: ChapterStatus.ACTIVE,
     },
     order: [['order', 'ASC']],
-    include: [{ model: Topic, as: 'topics', attributes: ['id'] }],
+    include: [
+      { model: Topic, as: 'topics', attributes: ['id'] },
+      { model: Content, as: 'contents', attributes: ['id'] },
+    ],
   });
 
   return {
@@ -318,13 +336,16 @@ export async function getChaptersForSubject(subjectId: number, classId: number) 
     },
     chapters: chapters.map((chap: any) => ({
       ...chap.toJSON(),
-      _count: { topics: chap.topics?.length || 0 },
+      _count: {
+        topics: chap.topics?.length || 0,
+        contents: chap.contents?.length || 0,
+      },
     })),
   };
 }
 
 /**
- * Get all active topics for a chapter.
+ * Get all active topics for a chapter, along with direct chapter content if no topics exist.
  */
 export async function getTopicsForChapter(chapterId: number, classId: number) {
   const chapter = await Chapter.findOne({
@@ -349,14 +370,23 @@ export async function getTopicsForChapter(chapterId: number, classId: number) {
     };
   }
 
-  const topics = await Topic.findAll({
-    where: {
-      chapterId,
-      status: TopicStatus.ACTIVE,
-    },
-    order: [['order', 'ASC']],
-    include: [{ model: Content, as: 'contents', attributes: ['id'] }],
-  });
+  const [topics, directContents] = await Promise.all([
+    Topic.findAll({
+      where: {
+        chapterId,
+        status: TopicStatus.ACTIVE,
+      },
+      order: [['order', 'ASC']],
+      include: [{ model: Content, as: 'contents', attributes: ['id'] }],
+    }),
+    Content.findAll({
+      where: {
+        chapterId,
+        status: ContentStatus.VISIBLE,
+      },
+      order: [['order', 'ASC']],
+    }),
+  ]);
 
   return {
     subject: (chapter as any).subject,
@@ -365,10 +395,13 @@ export async function getTopicsForChapter(chapterId: number, classId: number) {
       name: chapter.name,
       description: chapter.description,
     },
+    hasTopics: topics.length > 0,
+    hasDirectContent: directContents.length > 0,
     topics: topics.map((topic: any) => ({
       ...topic.toJSON(),
       _count: { contents: topic.contents?.length || 0 },
     })),
+    directContents: directContents.map((c: any) => c.toJSON()),
   };
 }
 
@@ -459,33 +492,62 @@ export async function getTopicDetails(topicId: number, studentId: number, classI
  * Get single content details and record access.
  */
 export async function getContentDetails(contentId: number, studentId: number, classId: number) {
-  const content = await Content.findOne({
-    where: {
-      id: contentId,
-      status: ContentStatus.VISIBLE,
-    },
-    include: [
-      {
-        model: Topic,
-        as: 'topic',
-        where: { status: TopicStatus.ACTIVE },
-        include: [
-          {
-            model: Chapter,
-            as: 'chapter',
-            where: { status: ChapterStatus.ACTIVE },
-            include: [
-              {
-                model: Subject,
-                as: 'subject',
-                where: { classId, status: SubjectStatus.ACTIVE },
-              },
-            ],
-          },
-        ],
+  const now = new Date();
+  const [content, progressResult] = await Promise.all([
+    Content.findOne({
+      where: {
+        id: contentId,
+        status: ContentStatus.VISIBLE,
       },
-    ],
-  });
+      include: [
+        {
+          model: Topic,
+          as: 'topic',
+          required: false,
+          where: { status: TopicStatus.ACTIVE },
+          include: [
+            {
+              model: Chapter,
+              as: 'chapter',
+              where: { status: ChapterStatus.ACTIVE },
+              include: [
+                {
+                  model: Subject,
+                  as: 'subject',
+                  where: { classId, status: SubjectStatus.ACTIVE },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          model: Chapter,
+          as: 'chapter',
+          required: false,
+          where: { status: ChapterStatus.ACTIVE },
+          include: [
+            {
+              model: Subject,
+              as: 'subject',
+              where: { classId, status: SubjectStatus.ACTIVE },
+            },
+          ],
+        },
+      ],
+    }),
+    (async () => {
+      let rec = await ContentProgress.findOne({ where: { studentId, contentId } });
+      if (rec) {
+        return rec.update({ lastAccessedAt: now });
+      }
+      return ContentProgress.create({
+        studentId,
+        contentId,
+        lastAccessedAt: now,
+        completed: false,
+      });
+    })(),
+  ]);
 
   if (!content) {
     throw {
@@ -495,18 +557,11 @@ export async function getContentDetails(contentId: number, studentId: number, cl
     };
   }
 
-  // Upsert access record
-  let progress = await ContentProgress.findOne({ where: { studentId, contentId } });
-  if (progress) {
-    progress = await progress.update({ lastAccessedAt: new Date() });
-  } else {
-    progress = await ContentProgress.create({
-      studentId,
-      contentId,
-      lastAccessedAt: new Date(),
-      completed: false,
-    });
-  }
+  const progress = progressResult;
+
+  const topic = (content as any).topic;
+  const chapter = topic ? topic.chapter : (content as any).chapter;
+  const subject = chapter ? chapter.subject : null;
 
   return {
     id: content.id,
@@ -515,9 +570,9 @@ export async function getContentDetails(contentId: number, studentId: number, cl
     url: content.url,
     description: content.description,
     metadata: content.metadata,
-    topicName: (content as any).topic.name,
-    chapterName: (content as any).topic.chapter.name,
-    subjectName: (content as any).topic.chapter.subject.name,
+    topicName: topic?.name || null,
+    chapterName: chapter?.name || '',
+    subjectName: subject?.name || '',
     isCompleted: progress.completed,
     completedAt: progress.completedAt,
     lastAccessedAt: progress.lastAccessedAt,
@@ -599,37 +654,47 @@ export async function getRecentContent(studentId: number, limit: number = 10) {
           {
             model: Topic,
             as: 'topic',
+            required: false,
             include: [
               {
                 model: Chapter,
                 as: 'chapter',
-                include: [
-                  {
-                    model: Subject,
-                    as: 'subject',
-                  },
-                ],
+                include: [{ model: Subject, as: 'subject' }],
               },
             ],
+          },
+          {
+            model: Chapter,
+            as: 'chapter',
+            required: false,
+            include: [{ model: Subject, as: 'subject' }],
           },
         ],
       },
     ],
   });
 
-  return progressList.map((p: any) => ({
-    id: p.content.id,
-    contentId: p.content.id,
-    title: p.content.title,
-    type: p.content.type,
-    url: p.content.url,
-    description: p.content.description,
-    topicId: p.content.topic.id,
-    topicName: p.content.topic.name,
-    chapterName: p.content.topic.chapter.name,
-    subjectName: p.content.topic.chapter.subject.name,
-    completed: p.completed,
-    completedAt: p.completedAt,
-    lastAccessedAt: p.lastAccessedAt,
-  }));
+  return progressList.map((p: any) => {
+    const cnt = p.content;
+    const top = cnt.topic;
+    const chap = top ? top.chapter : cnt.chapter;
+    const subj = chap ? chap.subject : null;
+
+    return {
+      id: cnt.id,
+      contentId: cnt.id,
+      title: cnt.title,
+      type: cnt.type,
+      url: cnt.url,
+      description: cnt.description,
+      topicId: top ? top.id : undefined,
+      chapterId: chap ? chap.id : undefined,
+      topicName: top ? top.name : null,
+      chapterName: chap ? chap.name : '',
+      subjectName: subj ? subj.name : '',
+      completed: p.completed,
+      completedAt: p.completedAt,
+      lastAccessedAt: p.lastAccessedAt,
+    };
+  });
 }

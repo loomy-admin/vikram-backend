@@ -31,6 +31,8 @@ export const registerStudentSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name cannot exceed 100 characters'),
   schoolId: z.number().int().positive('Valid schoolId is required'),
   classId: z.number().int().positive('Valid classId is required'),
+  city: z.string().optional(),
+  state: z.string().optional(),
   rollNumber: z.string().optional(),
 });
 

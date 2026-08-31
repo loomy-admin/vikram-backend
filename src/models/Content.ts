@@ -8,9 +8,23 @@ export const Content: any = sequelize.define('Content', {
       autoIncrement: true,
       primaryKey: true,
     },
+    chapterId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'chapters',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
+    },
     topicId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
+      references: {
+        model: 'topics',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
     },
     title: {
       type: DataTypes.STRING(255),
@@ -45,6 +59,7 @@ export const Content: any = sequelize.define('Content', {
   },  {
     tableName: 'contents',
     indexes: [
+      { fields: ['chapterId'] },
       { fields: ['topicId'] },
       { fields: ['status'] },
       { fields: ['type'] },

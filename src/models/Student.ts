@@ -21,6 +21,14 @@ export const Student: any = sequelize.define('Student', {
       type: DataTypes.STRING(50),
       allowNull: true,
     },
+    city: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    state: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
     passwordHash: {
       type: DataTypes.STRING(255),
       allowNull: true,
