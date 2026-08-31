@@ -157,11 +157,13 @@ import { SchoolStatus, StudentStatus, AdminStatus } from '../types/enums';
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
       const search = req.query.search as string;
+      const name = req.query.name as string;
+      const accessCode = (req.query.accessCode || req.query.code) as string;
       const schoolId = req.query.schoolId ? parseInt(req.query.schoolId as string, 10) : undefined;
       const classId = req.query.classId ? parseInt(req.query.classId as string, 10) : undefined;
       const status = req.query.status as StudentStatus;
 
-      const result = await AdminService.listStudents({ page, limit, search, schoolId, classId, status });
+      const result = await AdminService.listStudents({ page, limit, search, name, accessCode, schoolId, classId, status });
       return sendSuccess(res, result, 'Students retrieved');
     } catch (error) {
       next(error);

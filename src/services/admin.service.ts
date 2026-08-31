@@ -128,6 +128,8 @@ export async function listStudents(params: {
   page?: number;
   limit?: number;
   search?: string;
+  name?: string;
+  accessCode?: string;
   schoolId?: number;
   classId?: number;
   status?: StudentStatus;
@@ -137,6 +139,7 @@ export async function listStudents(params: {
   const offset = (page - 1) * limit;
 
   const where: any = {};
+  const accessCodeWhere: any = {};
 
   if (params.search) {
     where[Op.or] = [
@@ -144,6 +147,14 @@ export async function listStudents(params: {
       { email: { [Op.like]: `%${params.search}%` } },
       { phone: { [Op.like]: `%${params.search}%` } },
     ];
+  }
+
+  if (params.name) {
+    where.name = { [Op.like]: `%${params.name}%` };
+  }
+
+  if (params.accessCode) {
+    accessCodeWhere.code = { [Op.like]: `%${params.accessCode}%` };
   }
 
   if (params.schoolId) where.schoolId = params.schoolId;
@@ -158,7 +169,13 @@ export async function listStudents(params: {
     include: [
       { model: School, as: 'school', attributes: ['id', 'name', 'schoolCode'] },
       { model: Class, as: 'class', attributes: ['id', 'name', 'grade'] },
-      { model: AccessCode, as: 'accessCode', attributes: ['id', 'code', 'status', 'usedAt'] },
+      {
+        model: AccessCode,
+        as: 'accessCode',
+        attributes: ['id', 'code', 'status', 'usedAt'],
+        where: Object.keys(accessCodeWhere).length > 0 ? accessCodeWhere : undefined,
+        required: Object.keys(accessCodeWhere).length > 0,
+      },
       { model: ContentProgress, as: 'progress', attributes: ['id'] },
     ],
   });
@@ -174,11 +191,14 @@ export async function listStudents(params: {
       status: student.status,
       school: student.school,
       class: student.class,
+      accessCode: student.accessCode,
       assignedAccessCode: student.accessCode ? student.accessCode.code : null,
       accessCodeStatus: student.accessCode ? student.accessCode.status : null,
       registrationDate: student.createdAt,
+      lastLoginAt: student.lastLoginAt,
       lastLogin: student.lastLoginAt,
       completedActivities: student.progress ? student.progress.length : 0,
+      createdAt: student.createdAt,
     })),
     pagination: {
       total,
