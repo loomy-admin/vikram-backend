@@ -32,6 +32,39 @@ async function bootstrap() {
     await sequelize.sync();
     logger.info(' Database schema synced');
 
+    // Auto-seed default Super Admin users if no admin exists
+    try {
+      const { AdminUser } = await import('./models');
+      const bcrypt = await import('bcrypt');
+      
+      const adminCount = await AdminUser.count();
+      if (adminCount === 0) {
+        logger.info('[Seeder] Seeding default admin users...');
+        const hash1 = await bcrypt.hash('Admin123!', 10);
+        const hash2 = await bcrypt.hash('admin123', 10);
+
+        await AdminUser.bulkCreate([
+          {
+            name: 'Platform Administrator',
+            email: 'admin@platform.com',
+            passwordHash: hash1,
+            status: 'ACTIVE',
+            role: 'SUPER_ADMIN',
+          },
+          {
+            name: 'System Admin',
+            email: 'admin@example.com',
+            passwordHash: hash2,
+            status: 'ACTIVE',
+            role: 'SUPER_ADMIN',
+          },
+        ]);
+        logger.info('[Seeder] ✅ Default admin users created successfully (admin@platform.com & admin@example.com)');
+      }
+    } catch (seedErr) {
+      logger.warn('[Seeder] Note: Skipping admin seeding:', seedErr);
+    }
+
     // Start Express server
     const server = app.listen(config.port, '0.0.0.0', () => {
       logger.info(` Student Learning Platform Backend is running on port ${config.port}`);
