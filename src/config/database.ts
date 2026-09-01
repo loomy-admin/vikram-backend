@@ -15,24 +15,42 @@ if (!dbName || !dbUser) {
 }
 
 export async function ensureDatabaseExists() {
-  const connection = await mysql.createConnection({
-    host: dbHost,
-    port: dbPort,
-    user: dbUser,
-    password: dbPassword,
-  });
-  await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
-  await connection.end();
+  // If connecting to a cloud host or defaultdb, database already exists
+  if (dbHost !== 'localhost' && dbHost !== '127.0.0.1') {
+    return;
+  }
+  try {
+    const connection = await mysql.createConnection({
+      host: dbHost,
+      port: dbPort,
+      user: dbUser,
+      password: dbPassword,
+    });
+    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
+    await connection.end();
+  } catch (err) {
+    console.warn('[Database] Could not auto-create local database schema, proceeding with existing connection.');
+  }
 }
+
+const isCloudDb = dbHost !== 'localhost' && dbHost !== '127.0.0.1';
+const enableSsl = process.env.DB_SSL === 'true' || isCloudDb;
 
 export const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
   host: dbHost,
   port: dbPort,
   dialect: 'mysql',
-  logging: false, // Set to console.log to see SQL queries
+  logging: false,
+  dialectOptions: enableSsl
+    ? {
+        ssl: {
+          rejectUnauthorized: false,
+        },
+      }
+    : undefined,
   define: {
     timestamps: true,
-    underscored: false, // matches Prisma default unless specified
+    underscored: false,
   },
 });
 
