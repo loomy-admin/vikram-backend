@@ -48,8 +48,8 @@ export async function requestOtp(identifier: string, channel: OtpChannel): Promi
     };
   }
 
-  // Generate 6-digit OTP code
-  const otpCode = config.isDev && config.otp.devStaticOtp ? config.otp.devStaticOtp : generate6DigitOtp();
+  // Generate 6-digit OTP code (uses 123456 when dev OTP is enabled)
+  const otpCode = config.otp.enableDevOtp && config.otp.devStaticOtp ? config.otp.devStaticOtp : generate6DigitOtp();
   const otpHash = await bcrypt.hash(otpCode, 10);
   const expiresAt = new Date(Date.now() + config.otp.expiryMinutes * 60 * 1000);
 

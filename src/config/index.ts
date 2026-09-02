@@ -15,7 +15,7 @@ export const config = {
     expiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES || '5', 10),
     maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS || '5', 10),
     resendCooldownSeconds: parseInt(process.env.OTP_RESEND_COOLDOWN_SECONDS || '60', 10),
-    enableDevOtp: process.env.ENABLE_DEV_OTP === 'true' || process.env.NODE_ENV !== 'production',
+    enableDevOtp: process.env.ENABLE_DEV_OTP === 'false' ? false : true,
     devStaticOtp: process.env.DEV_STATIC_OTP || '123456',
   },
   storage: {
