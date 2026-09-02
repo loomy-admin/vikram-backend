@@ -65,45 +65,57 @@ export async function registerStudent(data: {
     };
   }
 
-  // Check for duplicate student
+  // Check for existing student
+  let existingStudent: any = null;
   if (data.email) {
-    const existingEmail = await Student.findOne({
-      where: { email: data.email?.trim() },
+    existingStudent = await Student.findOne({
+      where: { email: data.email?.trim().toLowerCase() },
     });
-    if (existingEmail) {
-      throw {
-        statusCode: 409,
-        code: ERROR_CODES.STUDENT_ALREADY_EXISTS,
-        message: 'A student is already registered with this email',
-      };
-    }
   }
-
-  if (data.phone) {
-    const existingPhone = await Student.findOne({
+  if (!existingStudent && data.phone) {
+    existingStudent = await Student.findOne({
       where: { phone: data.phone?.trim() },
     });
-    if (existingPhone) {
+  }
+
+  let student: any;
+
+  if (existingStudent) {
+    // If student is already ACTIVE, throw duplicate error
+    if (existingStudent.status === StudentStatus.ACTIVE) {
       throw {
         statusCode: 409,
         code: ERROR_CODES.STUDENT_ALREADY_EXISTS,
-        message: 'A student is already registered with this phone number',
+        message: 'A student account is already active with this email/phone',
       };
     }
+
+    // If student is PENDING, allow updating registration details
+    await existingStudent.update({
+      name: data.name.trim(),
+      schoolId: data.schoolId,
+      classId: data.classId,
+      city: data.city?.trim() || null,
+      state: data.state?.trim() || null,
+      rollNumber: data.rollNumber?.trim() || null,
+      lastLoginAt: new Date(),
+    });
+    student = existingStudent;
+  } else {
+    // Create student with PENDING status
+    student = await Student.create({
+      name: data.name.trim(),
+      email: data.email?.trim().toLowerCase() || null,
+      phone: data.phone?.trim() || null,
+      schoolId: data.schoolId,
+      classId: data.classId,
+      city: data.city?.trim() || null,
+      state: data.state?.trim() || null,
+      rollNumber: data.rollNumber?.trim() || null,
+      status: StudentStatus.PENDING,
+      lastLoginAt: new Date(),
+    });
   }
-  // Create student with PENDING status
-  const student = await Student.create({
-    name: data.name.trim(),
-    email: data.email?.trim().toLowerCase() || null,
-    phone: data.phone?.trim() || null,
-    schoolId: data.schoolId,
-    classId: data.classId,
-    city: data.city?.trim() || null,
-    state: data.state?.trim() || null,
-    rollNumber: data.rollNumber?.trim() || null,
-    status: StudentStatus.PENDING,
-    lastLoginAt: new Date(),
-  });
 
   // Reload to include relations for output
   await student.reload({
