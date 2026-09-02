@@ -4,7 +4,8 @@ const DB_HOST =
   process.env.DB_HOST || 'studentlearning-studentlearning.d.aivencloud.com';
 const DB_PORT = parseInt(process.env.DB_PORT || '15675', 10);
 const DB_USER = process.env.DB_USER || 'avnadmin';
-const DB_PASSWORD = process.env.DB_PASSWORD || 'YOUR_DB_PASSWORD';
+const DB_PASSWORD =
+  process.env.DB_PASSWORD || '';
 const DB_NAME = process.env.DB_NAME || 'defaultdb';
 
 const isCloud = DB_HOST !== 'localhost' && DB_HOST !== '127.0.0.1';
