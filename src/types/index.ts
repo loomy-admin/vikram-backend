@@ -11,7 +11,7 @@ export interface TokenPayload {
   schoolId?: number;
   classId?: number;
   status?: string;
-  isTemporary?: boolean; // Used for uncompleted registrations
+  isTemporary?: boolean;
 }
 
 export interface AuthenticatedRequest extends Request {

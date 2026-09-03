@@ -19,6 +19,7 @@ export async function ensureDatabaseExists() {
   if (dbHost !== 'localhost' && dbHost !== '127.0.0.1') {
     return;
   }
+
   try {
     const connection = await mysql.createConnection({
       host: dbHost,
@@ -45,10 +46,10 @@ export const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
     connectTimeout: 20000,
     ...(enableSsl
       ? {
-          ssl: {
-            rejectUnauthorized: false,
-          },
-        }
+        ssl: {
+          rejectUnauthorized: false,
+        },
+      }
       : {}),
   },
   pool: {
@@ -57,6 +58,7 @@ export const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
     acquire: 20000,
     idle: 10000,
   },
+
   define: {
     timestamps: true,
     underscored: false,

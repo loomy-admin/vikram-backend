@@ -20,6 +20,8 @@ export async function adminAuthMiddleware(
     return sendError(res, 'Authentication token is required', 401, ERROR_CODES.UNAUTHORIZED);
   }
 
+
+
   const token = authHeader.split(' ')[1];
   const payload = verifyJwt(token);
 
@@ -38,9 +40,6 @@ export async function adminAuthMiddleware(
   next();
 }
 
-/**
- * Middleware: Verify Student JWT Token (for active or pending students).
- */
 export async function studentAuthMiddleware(
   req: AuthenticatedRequest,
   res: Response,
