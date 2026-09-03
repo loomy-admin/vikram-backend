@@ -41,13 +41,22 @@ export const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
   port: dbPort,
   dialect: 'mysql',
   logging: false,
-  dialectOptions: enableSsl
-    ? {
-        ssl: {
-          rejectUnauthorized: false,
-        },
-      }
-    : undefined,
+  dialectOptions: {
+    connectTimeout: 20000,
+    ...(enableSsl
+      ? {
+          ssl: {
+            rejectUnauthorized: false,
+          },
+        }
+      : {}),
+  },
+  pool: {
+    max: 10,
+    min: 0,
+    acquire: 20000,
+    idle: 10000,
+  },
   define: {
     timestamps: true,
     underscored: false,
