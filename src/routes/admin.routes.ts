@@ -135,6 +135,7 @@ router.patch(
 );
 router.delete('/content/:id', ContentController.deleteContent);
 router.post('/content/upload', upload.single('file'), ContentController.uploadFile);
+router.post('/upload/image', upload.single('file'), ContentController.uploadImage);
 
 // --------------------------------------------------------
 // 10. ADMIN USER MANAGEMENT

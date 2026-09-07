@@ -43,7 +43,6 @@ export enum TopicStatus {
 export enum ContentType {
   VIDEO = 'VIDEO',
   PDF = 'PDF',
-  IMAGE = 'IMAGE',
   WEB_LINK = 'WEB_LINK',
 }
 

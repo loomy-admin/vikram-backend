@@ -1,6 +1,7 @@
 import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
+import { config } from './index';
 
 dotenv.config();
 
@@ -53,10 +54,10 @@ export const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
       : {}),
   },
   pool: {
-    max: 10,
-    min: 0,
-    acquire: 20000,
-    idle: 10000,
+    max: config.db.poolMax,
+    min: config.db.poolMin,
+    acquire: config.db.poolAcquire,
+    idle: config.db.poolIdle,
   },
 
   define: {

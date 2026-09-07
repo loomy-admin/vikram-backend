@@ -20,6 +20,10 @@ export const Subject: any = sequelize.define('Subject', {
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    imageUrl: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     order: {
       type: DataTypes.INTEGER,
       defaultValue: 0,

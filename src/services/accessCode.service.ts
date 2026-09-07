@@ -189,6 +189,11 @@ export async function generateSingleCode(schoolId: number) {
 
 /**
  * Admin: Generate bulk unique 10-digit access codes for a school.
+ *
+ * Performance: Does NOT load all existing codes into memory.
+ * Relies on the DB UNIQUE constraint on the `code` column + ignoreDuplicates
+ * to handle rare collisions. Generates codes in small batches and retries if
+ * duplicates are detected.
  */
 export async function generateBulkCodes(schoolId: number, quantity: number) {
   const school = await School.findByPk(schoolId);
@@ -201,28 +206,48 @@ export async function generateBulkCodes(schoolId: number, quantity: number) {
     };
   }
 
-  // Fetch existing codes to prevent collision in memory
-  const existingCodes = await AccessCode.findAll({
-    attributes: ['code'],
-  });
-  const existingSet = new Set<string>(existingCodes.map((c: any) => c.code));
+  const MAX_RETRIES = 5;
+  const collected: string[] = [];
+  let attempts = 0;
 
-  const generatedCodes = generateBulk10DigitCodes(quantity, existingSet);
+  while (collected.length < quantity && attempts < MAX_RETRIES) {
+    const needed = quantity - collected.length;
+    // Generate more than needed to account for collisions
+    const candidates = generateBulk10DigitCodes(Math.ceil(needed * 1.2));
 
-  // Insert records in batch
-  await AccessCode.bulkCreate(
-    generatedCodes.map((code) => ({
-      code,
-      schoolId,
-      status: AccessCodeStatus.UNUSED,
-    })),
-    { ignoreDuplicates: true }
-  );
+    // Use ignoreDuplicates — DB UNIQUE index rejects collisions silently
+    const records = await AccessCode.bulkCreate(
+      candidates.map((code) => ({
+        code,
+        schoolId,
+        status: AccessCodeStatus.UNUSED,
+      })),
+      { ignoreDuplicates: true, returning: false }
+    );
 
-  logger.info(`Generated ${generatedCodes.length} bulk access codes for school ID ${schoolId}`);
+    // Verify how many were actually inserted by checking the DB count for this batch
+    const inserted = await AccessCode.findAll({
+      where: { code: { [Op.in]: candidates }, schoolId },
+      attributes: ['code'],
+    });
+
+    for (const r of inserted) {
+      if (collected.length < quantity && !collected.includes(r.code)) {
+        collected.push(r.code);
+      }
+    }
+
+    attempts++;
+  }
+
+  if (collected.length < quantity) {
+    logger.warn(`[BulkCodes] Only generated ${collected.length} of ${quantity} requested codes after ${MAX_RETRIES} retries`);
+  }
+
+  logger.info(`Generated ${collected.length} bulk access codes for school ID ${schoolId}`);
 
   const nowIso = new Date().toISOString();
-  const codesList = generatedCodes.map((code, index) => ({
+  const codesList = collected.map((code, index) => ({
     id: index + 1,
     code,
     status: AccessCodeStatus.UNUSED,
@@ -232,8 +257,8 @@ export async function generateBulkCodes(schoolId: number, quantity: number) {
   return {
     schoolId,
     schoolName: school.name,
-    totalGenerated: generatedCodes.length,
-    sampleCodes: generatedCodes.slice(0, 5),
+    totalGenerated: collected.length,
+    sampleCodes: collected.slice(0, 5),
     codes: codesList,
   };
 }

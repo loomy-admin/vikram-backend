@@ -38,6 +38,10 @@ export const Content: any = sequelize.define('Content', {
       type: DataTypes.TEXT,
       allowNull: false,
     },
+    thumbnailUrl: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     description: {
       type: DataTypes.TEXT,
       allowNull: true,

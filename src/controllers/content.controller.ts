@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as ContentService from '../services/content.service';
 import * as StorageService from '../services/storage.service';
+import * as CloudinaryService from '../services/cloudinary.service';
 import { sendSuccess, sendCreated } from '../utils/response';
 import { ContentType, ContentStatus, SubjectStatus, ChapterStatus, TopicStatus, ClassStatus } from '../types/enums';
 
@@ -212,12 +213,13 @@ import { ContentType, ContentStatus, SubjectStatus, ChapterStatus, TopicStatus, 
   export async function listContent(req: Request, res: Response, next: NextFunction) {
     try {
       const topicId = req.query.topicId ? parseInt(req.query.topicId as string, 10) : undefined;
+      const chapterId = req.query.chapterId ? parseInt(req.query.chapterId as string, 10) : undefined;
       const type = req.query.type as ContentType;
       const status = req.query.status as ContentStatus;
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
 
-      const result = await ContentService.listContent({ topicId, type, status, page, limit });
+      const result = await ContentService.listContent({ topicId, chapterId, type, status, page, limit });
       return sendSuccess(res, result, 'Content items retrieved');
     } catch (error) {
       next(error);
@@ -301,4 +303,38 @@ import { ContentType, ContentStatus, SubjectStatus, ChapterStatus, TopicStatus, 
       next(error);
     }
   }
+
+  /**
+   * POST /api/admin/upload/image
+   * Uploads image to Cloudinary (or fallback storage) and returns public secure URL.
+   */
+  export async function uploadImage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const file = (req as any).file;
+      if (!file) {
+        return res.status(400).json({ success: false, message: 'No image file was uploaded' });
+      }
+
+      const filePath = file.path || file.filename;
+      const result = await CloudinaryService.uploadImageToCloudinary(
+        filePath,
+        'student_learning_platform/subjects'
+      );
+
+      return sendCreated(
+        res,
+        {
+          url: result.url,
+          publicId: result.publicId,
+          filename: file.filename,
+          originalName: file.originalname,
+          sizeBytes: file.size,
+        },
+        'Image uploaded successfully'
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
 
